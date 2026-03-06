@@ -51,7 +51,7 @@ services:
     build: ./services/ai-service
     container_name: fastapi-service
     ports:
-      - "8001:8000"
+      - "${AI_SERVICE_EXTERNAL_PORT:-8000}:8000"
 
 volumes:
   postgres_data:
