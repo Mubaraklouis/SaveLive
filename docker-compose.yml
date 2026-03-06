@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: savelife-app
+    restart: unless-stopped
+    ports:
+      - "${APP_EXTERNAL_PORT:-3001}:3000"
+    environment:
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-savelife}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+    networks:
+      - savelife-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: savelife-db
+    restart: unless-stopped
+    ports:
+      - "${DB_EXTERNAL_PORT:-5436}:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-savelife}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-savelife}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - savelife-network
+
+volumes:
+  postgres_data:
+
+networks:
+  savelife-network:
+    driver: bridge
