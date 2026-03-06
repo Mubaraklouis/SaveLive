@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install only the dependency — single layer, no extra tooling
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir "starlette>=0.46.0" "uvicorn>=0.34.0"
+RUN pip install --no-cache-dir "starlette>=0.46.0" "uvicorn>=0.34.0" pandas joblib
 
 # Copy application code
 COPY . .
