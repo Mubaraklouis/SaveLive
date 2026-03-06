@@ -1,7 +1,12 @@
-from fastapi import FastAPI
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
-app = FastAPI()
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+async def homepage(request):
+    return JSONResponse({'hello': 'world'})
+
+
+app = Starlette(debug=True, routes=[
+    Route('/', homepage),
+])
