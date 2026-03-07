@@ -1,7 +1,9 @@
+import asyncio
 import json
 import traceback
 from functools import lru_cache
 
+from sse_starlette import EventSourceResponse
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -12,6 +14,14 @@ from app.translator_utils import (
     translate_prediction_to_response,
     translate_to_model_input,
 )
+
+subscribers = []
+
+
+async def event_generator(queue):
+    while True:
+        message = await queue.get()
+        yield f"data: {message}\n\n"
 
 
 @lru_cache(maxsize=1)  # Cache the result of this function
@@ -100,8 +110,17 @@ async def predict(request: Request):
             {"error": f"Failed to translate prediction: {str(e)}"},
             status_code=500,
         )
+    for q in subscribers:
+        await q.put(f"Prediction result: {result}")
 
     return JSONResponse(result)
+
+
+async def events(request: Request):
+    queue = asyncio.Queue()
+    subscribers.append(queue)
+    # return StreamingResponse(event_generator(queue), media_type="text/event-stream")
+    return EventSourceResponse(event_generator(queue))
 
 
 app = Starlette(
@@ -109,5 +128,6 @@ app = Starlette(
     routes=[
         Route("/", homepage),
         Route("/predict", predict, methods=["POST"]),
+        Route("/broadcast/events", events),
     ],
 )
