@@ -1,67 +1,59 @@
 import json
 import traceback
-
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.requests import Request
-from starlette.routing import Route
-from starlette.applications import Starlette
 from functools import lru_cache
-import contextlib
+
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+from app.translator_utils import (
+    load_model,
+    translate_prediction_to_response,
+    translate_to_model_input,
+)
 
 
-
-
-@lru_cache(maxsize=1) # Cache the result of this function
+@lru_cache(maxsize=1)  # Cache the result of this function
 def get_model():
     print("Attempting to load model (lazy)...")
     try:
-        # model = joblib.load("models/sentiment_model.pkl")
-        model = {"model": "test"}
-        print("Model loaded successfully.")
-        return model
+        # ───----------- Load model once at startup ────────────
+        print("Loading displacement model...")
+        model_bundle = load_model()
+        print(
+            f"Model loaded — accuracy: {model_bundle['accuracy']:.4f}, "
+            f"towns: {model_bundle['num_target_towns']}"
+        )
+        return model_bundle
     except FileNotFoundError:
         print("Error: Model file not found during lazy load.")
-        return None # Indicate failure
+        return None  # Indicate failure
     except Exception as e:
         print(f"Error lazy loading model: {e}")
         return None
 
 
 async def homepage(request: Request):
-    return JSONResponse({"hello": "world"})
-
-from app.translator_utils import (
-    load_model,
-    translate_to_model_input,
-    translate_prediction_to_response,
-)
-
-# ─── Load model once at startup ──────────────────────────────────
-print("Loading displacement model...")
-model_bundle = load_model()
-print(
-    f"Model loaded — accuracy: {model_bundle['accuracy']:.4f}, "
-    f"towns: {model_bundle['num_target_towns']}"
-)
+    model_bundle = get_model()
+    return JSONResponse(
+        {
+            "service": "SaveLife AI Displacement Prediction",
+            "status": "running",
+            "model_accuracy": round(float(model_bundle["accuracy"]), 4),
+            "num_target_towns": model_bundle["num_target_towns"],
+        }
+    )
 
 
-async def homepage(request):
-    return JSONResponse({
-        "service": "SaveLife AI Displacement Prediction",
-        "status": "running",
-        "model_accuracy": round(float(model_bundle["accuracy"]), 4),
-        "num_target_towns": model_bundle["num_target_towns"],
-    })
-
-
-async def predict(request):
+async def predict(request: Request):
     """
     POST /predict
     Accepts a raw ACLED conflict event JSON body and returns
     a displacement prediction with top destination towns.
     """
     # ── Parse request body ──
+    model_bundle = get_model()
     try:
         body = await request.json()
     except json.JSONDecodeError:

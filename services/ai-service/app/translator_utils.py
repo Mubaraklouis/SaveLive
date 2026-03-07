@@ -1,19 +1,21 @@
-import pandas as pd
-import joblib
-import numpy as np
 import os
 from datetime import datetime
 
-RULES_FILE = 'location_rules.joblib'
+import joblib
+import pandas as pd
+
+RULES_FILE = "location_rules.joblib"
 
 # ─── Default model path ──────────────────────────────────────────
 MODEL_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "..", "model", "displacement_model.joblib"
+    "..",
+    "model",
+    "displacement_model.joblib",
 )
 
 
-def load_model(model_path=None):
+def load_model(model_path=None) -> object:
     """
     Load the saved displacement model bundle from disk.
     Call this ONCE when your API starts up.
@@ -66,11 +68,15 @@ def translate_to_model_input(model_bundle, conflict_event):
 
     # ── Encode features ──
     input_data = {
-        "origin_country": _encode_safe(label_encoders["origin_country"], origin_country),
+        "origin_country": _encode_safe(
+            label_encoders["origin_country"], origin_country
+        ),
         "origin_admin1": _encode_safe(label_encoders["origin_admin1"], origin_admin1),
         "direction": _encode_safe(label_encoders["direction"], direction),
         "reason": _encode_safe(label_encoders["reason"], reason),
-        "reason_subtype": _encode_safe(label_encoders["reason_subtype"], reason_subtype),
+        "reason_subtype": _encode_safe(
+            label_encoders["reason_subtype"], reason_subtype
+        ),
         "month": int(month),
         "year": int(year),
         "group_size": int(group_size),
@@ -81,7 +87,9 @@ def translate_to_model_input(model_bundle, conflict_event):
     return pd.DataFrame([input_data])
 
 
-def translate_prediction_to_response(model_bundle, conflict_event, prediction, prediction_proba, top_n=10):
+def translate_prediction_to_response(
+    model_bundle, conflict_event, prediction, prediction_proba, top_n=10
+):
     """
     Translate raw model output back into a human-readable response dict.
 
@@ -124,12 +132,14 @@ def translate_prediction_to_response(model_bundle, conflict_event, prediction, p
 
     top_destinations = []
     for rank, (town, prob) in enumerate(town_probs[:top_n], start=1):
-        top_destinations.append({
-            "rank": rank,
-            "town": str(town),
-            "state": town_to_state.get(str(town), "Unknown"),
-            "probability": round(float(prob), 6),
-        })
+        top_destinations.append(
+            {
+                "rank": rank,
+                "town": str(town),
+                "state": town_to_state.get(str(town), "Unknown"),
+                "probability": round(float(prob), 6),
+            }
+        )
 
     # ── Assemble result ──
     return {
@@ -177,19 +187,20 @@ def translate_prediction_to_response(model_bundle, conflict_event, prediction, p
 
 # ─── Legacy functions (kept for backward compatibility) ───────────
 
+
 def prepare_training_data(raw_events):
     df = pd.DataFrame(raw_events)
 
-    unique_data = sorted(df['location'].unique().tolist())
+    unique_data = sorted(df["location"].unique().tolist())
 
     mapping = {town: i for i, town in enumerate(unique_data)}
     reverse_mapping = {i: town for town, i in mapping.items()}
 
-    joblib.dump({'forward': mapping, 'backward': reverse_mapping}, RULES_FILE)
+    joblib.dump({"forward": mapping, "backward": reverse_mapping}, RULES_FILE)
 
-    df['location_id'] = df['location'].map(mapping)
+    df["location_id"] = df["location"].map(mapping)
 
-    return df[['location_id', 'fatalities']]
+    return df[["location_id", "fatalities"]]
 
 
 def get_prediction_town(predicted_data):
@@ -198,4 +209,4 @@ def get_prediction_town(predicted_data):
 
     rules = joblib.load(RULES_FILE)
 
-    return rules['backward'].get(predicted_data, "Unknown Location")
+    return rules["backward"].get(predicted_data, "Unknown Location")
