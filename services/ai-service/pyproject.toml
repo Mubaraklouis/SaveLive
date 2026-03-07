@@ -8,5 +8,7 @@ dependencies = [
     "starlette>=0.52.1",
     "uvicorn>=0.34.0",
     "pandas",
-    "joblib"
+    "joblib",
+    "scikit-learn",
+    "numpy",
 ]
